@@ -7,19 +7,90 @@ output:
 
 
 ## Loading and preprocessing the data
+data <- read.csv("activity.csv", colClasses = c("numeric", "character", 
+        "numeric"))
+head(data)
 
-
+data$date <- as.Date(data$date, "%Y-%m-%d")
 
 ## What is mean total number of steps taken per day?
 
+steps <- rep(NA, 61)
+day <- rep("NA", 61)
+stepsday <- tapply(data$steps, data$date, sum, na.rm = T)
+day_name <- names(stepsday)
 
+for (i in 1:61) {
+    steps[i] <- stepsday[[i]]
+    day[i] <- day_name[i]
+}
+
+df <- data.frame(day, steps)
+head(df)
+
+hist(df$steps, main = "Total steps by day", xlab = "day", col = "blue")
+mean(df$steps)
+median(df$steps)
 
 ## What is the average daily activity pattern?
 
+ave_step <- aggregate(steps ~ interval, data, mean)
+head(ave_step)
+plot(ave_step$interval, ave_step$steps, type = "l", xlab = "Interval",
+        ylab = "Average Steps Taken", main = "Average daily activity",
+        col = "blue")
 
+max_interval <- ave_step[which.max(ave_step$steps), 1]
+max_interval
 
 ## Imputing missing values
 
+data_na <- sum(!complete.cases(data))
+data_na
 
+StepsAverage <- aggregate(steps ~ interval, data = data, FUN = mean)
+fillNA <- numeric()
+for (i in 1:nrow(data)) {
+    obs <- data[i, ]
+    if (is.na(obs$steps)) {
+        steps <- subset(StepsAverage, interval == obs$interval)$steps
+    } else {
+        steps <- obs$steps
+    }
+    fillNA <- c(fillNA, steps)
+}
+
+data_new <- data
+data_new$steps <- fillNA
+
+totalSteps_new <- aggregate(steps~date, data = data_new, sum, na.rm=T)
+hist(totalSteps_new$steps, main = "Total steps by day", xlab = "day",
+    col = "blue")
+
+mean(totalSteps_new$steps)
+median(totalSteps_new$steps)
 
 ## Are there differences in activity patterns between weekdays and weekends?
+
+day <- weekdays(data$date)
+daytype <- vector()
+
+for (i in 1:nrow(data)) {
+    if (day[i] == "Saturday") {
+        daytype[i] <- "Weekend"
+    } else if (day[i] == "Sunday") {
+        daytype[i] <- "Weekend"
+    } else {
+        daytype[i] <- "Weekday"
+    }
+}
+
+data$daytype <- daytype
+data$daytype <- factor(data$daytype)
+
+steps_day <- aggregate(steps ~ interval+daytype, data , mean)
+names(steps_day) <- c("interval", "daytype", "steps")
+
+library(lattice)
+xyplot(steps ~ interval | daytype, steps_day, type = "l", layout = c(1, 2),
+        xlab = "Interval", ylab = "Number of steps")
